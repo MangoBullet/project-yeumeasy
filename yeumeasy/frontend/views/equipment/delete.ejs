@@ -1,0 +1,23 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Delete Equipment</h1>
+  <p id="target" class="small">Loading...</p>
+  <div class="flex">
+    <button class="btn btn-danger" id="deleteBtn">Confirm Delete</button>
+    <a class="btn btn-gray" href="/equipment">Cancel</a>
+  </div>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const id = window.location.pathname.split('/')[2];
+(async () => {
+  const res = await fetch(`${API}/equipment/${id}`);
+  const j = await res.json();
+  document.getElementById('target').textContent = `${j.data.equipment_name} (${j.data.category || '-'})`;
+})();
+document.getElementById('deleteBtn').addEventListener('click', async () => {
+  const res = await fetch(`${API}/equipment/${id}`, { method:'DELETE' });
+  if (res.ok) window.location = '/equipment'; else alert('Delete failed');
+});
+</script>
+<%- include('../partials/footer') %>

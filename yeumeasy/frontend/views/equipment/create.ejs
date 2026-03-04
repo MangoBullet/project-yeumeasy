@@ -1,0 +1,43 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Create Equipment</h1>
+  <form id="createForm">
+    <input name="equipment_name" placeholder="Equipment name" required />
+    <select name="category">
+      <option value="IT">IT</option>
+      <option value="AV">AV</option>
+      <option value="Accessory">Accessory</option>
+      <option value="Audio">Audio</option>
+      <option value="Media">Media</option>
+      <option value="Utility">Utility</option>
+      <option value="Other">Other</option>
+    </select>
+    <input type="number" name="quantity" placeholder="Quantity" min="0" value="0" required />
+    <select name="status">
+      <option value="available" selected>available</option>
+      <option value="low_stock">low_stock</option>
+      <option value="out_of_stock">out_of_stock</option>
+      <option value="maintenance">maintenance</option>
+      <option value="unavailable">unavailable</option>
+    </select>
+    <div class="flex">
+      <button class="btn btn-success" type="submit">Save</button>
+      <a class="btn btn-gray" href="/equipment">Cancel</a>
+    </div>
+  </form>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  payload.quantity = Number(payload.quantity || 0);
+  const res = await fetch(`${API}/equipment`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+  const json = await res.json();
+  if (res.ok) window.location = '/equipment';
+  else alert((json.errors && json.errors[0] && json.errors[0].msg) || json.message || 'Create failed');
+});
+</script>
+<%- include('../partials/footer') %>

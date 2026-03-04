@@ -1,0 +1,29 @@
+  </main>
+  <script>
+    (function () {
+      const body = document.body;
+      const toggle = document.getElementById('themeToggle');
+      const savedTheme = window.__yeumeasyTheme || 'light';
+
+      if (savedTheme === 'dark') {
+        body.classList.add('dark-mode');
+      }
+
+      if (!toggle) return;
+
+      function setToggleText() {
+        toggle.textContent = body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
+      }
+
+      toggle.addEventListener('click', () => {
+        body.classList.toggle('dark-mode');
+        const theme = body.classList.contains('dark-mode') ? 'dark' : 'light';
+        localStorage.setItem('yeumeasy_theme', theme);
+        setToggleText();
+      });
+
+      setToggleText();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <div class="flex" style="justify-content: space-between; align-items: center;">
+    <h1>Borrow Details</h1>
+    <a class="btn btn-primary" href="/borrow-details/create">Create Borrow Detail</a>
+  </div>
+</section>
+<section class="card">
+  <table>
+    <thead><tr><th>ID</th><th>Borrow</th><th>Equipment</th><th>Amount</th><th>Returned</th><th>Actions</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+(async () => {
+  const res = await fetch(`${API}/borrow-details`);
+  const j = await res.json();
+  document.getElementById('rows').innerHTML = j.data.map(d => `
+    <tr>
+      <td>${d.id}</td><td>#${d.borrow_id}</td><td>${d.equipment ? d.equipment.equipment_name : d.equipment_id}</td><td>${d.amount}</td><td>${d.returned_amount}</td>
+      <td class="actions">
+        <a class="btn btn-gray" href="/borrow-details/${d.id}">Show</a>
+        <a class="btn btn-primary" href="/borrow-details/${d.id}/edit">Edit</a>
+        <a class="btn btn-danger" href="/borrow-details/${d.id}/delete">Delete</a>
+      </td>
+    </tr>
+  `).join('');
+})();
+</script>
+<%- include('../partials/footer') %>

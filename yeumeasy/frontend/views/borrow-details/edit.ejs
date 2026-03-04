@@ -1,0 +1,53 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Edit Borrow Detail</h1>
+  <form id="editForm">
+    <select name="borrow_id" id="borrowSelect" required></select>
+    <select name="equipment_id" id="equipmentSelect" required></select>
+    <input type="number" name="amount" min="1" required />
+    <input type="number" name="returned_amount" min="0" required />
+    <div class="flex">
+      <button class="btn btn-primary" type="submit">Update</button>
+      <a class="btn btn-gray" href="/borrow-details">Back</a>
+    </div>
+  </form>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const id = window.location.pathname.split('/')[2];
+
+async function init() {
+  const [detailRes, borrowsRes, equipmentRes] = await Promise.all([
+    fetch(`${API}/borrow-details/${id}`),
+    fetch(`${API}/borrows?page=1&pageSize=1000`),
+    fetch(`${API}/equipment?page=1&pageSize=1000`)
+  ]);
+  const detail = await detailRes.json();
+  const borrows = await borrowsRes.json();
+  const equipment = await equipmentRes.json();
+
+  document.getElementById('borrowSelect').innerHTML = borrows.data.map(b => `<option value="${b.id}">Borrow #${b.id}</option>`).join('');
+  document.getElementById('equipmentSelect').innerHTML = equipment.data.map(e => `<option value="${e.id}">${e.equipment_name}</option>`).join('');
+
+  const form = document.getElementById('editForm');
+  form.borrow_id.value = detail.data.borrow_id;
+  form.equipment_id.value = detail.data.equipment_id;
+  form.amount.value = detail.data.amount;
+  form.returned_amount.value = detail.data.returned_amount;
+}
+init();
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  payload.borrow_id = Number(payload.borrow_id);
+  payload.equipment_id = Number(payload.equipment_id);
+  payload.amount = Number(payload.amount);
+  payload.returned_amount = Number(payload.returned_amount);
+
+  const res = await fetch(`${API}/borrow-details/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+  if (res.ok) window.location = '/borrow-details'; else alert('Update failed');
+});
+</script>
+<%- include('../partials/footer') %>

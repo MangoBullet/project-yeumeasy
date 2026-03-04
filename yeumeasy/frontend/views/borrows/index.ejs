@@ -1,0 +1,86 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <div class="flex" style="justify-content: space-between; align-items: center;">
+    <h1>Borrows</h1>
+    <a class="btn btn-primary" href="/borrows/create">Create Borrow</a>
+  </div>
+  <form id="searchForm" class="flex">
+    <input id="searchInput" placeholder="Search user name / student ID / date / status" />
+    <button class="btn btn-success" type="submit">Search</button>
+    <a class="btn btn-gray" href="/borrows">Reset</a>
+  </form>
+</section>
+<section class="card">
+  <table>
+    <thead><tr><th>ID</th><th>User</th><th>Borrow Date</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="flex" style="margin-top:0.8rem;">
+    <button class="btn btn-gray" id="prevBtn">Previous</button>
+    <span id="pageInfo" class="small"></span>
+    <button class="btn btn-gray" id="nextBtn">Next</button>
+  </div>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const params = new URLSearchParams(window.location.search);
+let page = parseInt(params.get('page') || '1', 10);
+let search = params.get('search') || '';
+document.getElementById('searchInput').value = search;
+
+function setUrl() {
+  const p = new URLSearchParams();
+  if (search) p.set('search', search);
+  p.set('page', String(page));
+  history.replaceState({}, '', `/borrows?${p.toString()}`);
+}
+
+function renderStatusTag(borrow) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (borrow.borrow_status === 'returned') return '<span class="badge badge-success">returned</span>';
+  if (borrow.due_date < today) return '<span class="badge badge-danger">overdue</span>';
+  return '<span class="badge badge-primary">borrowed</span>';
+}
+
+async function loadBorrows() {
+  setUrl();
+  const res = await fetch(`${API}/borrows?search=${encodeURIComponent(search)}&page=${page}`);
+  const j = await res.json();
+  document.getElementById('rows').innerHTML = j.data.map(b => `
+    <tr>
+      <td>${b.id}</td><td>${b.user ? b.user.full_name : b.user_id}</td><td>${b.borrow_date}</td><td>${b.due_date}</td><td>${renderStatusTag(b)}</td>
+      <td class="actions">
+        <a class="btn btn-gray" href="/borrows/${b.id}">Show</a>
+        <a class="btn btn-primary" href="/borrows/${b.id}/edit">Edit</a>
+        <a class="btn btn-danger" href="/borrows/${b.id}/delete">Delete</a>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('pageInfo').textContent = `Page ${j.pagination.currentPage} / ${j.pagination.totalPages}`;
+  document.getElementById('prevBtn').disabled = page <= 1;
+  document.getElementById('nextBtn').disabled = page >= j.pagination.totalPages;
+}
+
+document.getElementById('searchForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  search = document.getElementById('searchInput').value.trim();
+  page = 1;
+  loadBorrows();
+});
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (page > 1) {
+    page -= 1;
+    loadBorrows();
+  }
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  page += 1;
+  loadBorrows();
+});
+
+loadBorrows();
+</script>
+<%- include('../partials/footer') %>

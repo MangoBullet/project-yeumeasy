@@ -1,0 +1,157 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Borrow Detail</h1>
+  <div id="detail" class="small">Loading...</div>
+</section>
+
+<section class="card">
+  <div class="flex" style="justify-content: space-between; align-items: center;">
+    <h2>Return Items</h2>
+    <button class="btn btn-success" id="refreshBtn" type="button">Refresh</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Equipment</th>
+        <th>Borrowed</th>
+        <th>Returned</th>
+        <th>Remaining</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="itemsRows">
+      <tr><td colspan="5" class="small">Loading...</td></tr>
+    </tbody>
+  </table>
+  <div class="flex" style="margin-top:0.8rem;">
+    <a class="btn btn-primary" id="editLink" href="#">Edit</a>
+    <a class="btn btn-gray" href="/borrows">Back</a>
+  </div>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const id = window.location.pathname.split('/')[2];
+let borrowData = null;
+
+function statusBadge(status) {
+  if (status === 'overdue') {
+    return '<span style="background:#c92a2a;color:#fff;padding:0.2rem 0.5rem;border-radius:6px;">Overdue</span>';
+  }
+  if (status === 'returned') {
+    return '<span style="background:#2f9e44;color:#fff;padding:0.2rem 0.5rem;border-radius:6px;">Returned</span>';
+  }
+  return '<span style="background:#0b7285;color:#fff;padding:0.2rem 0.5rem;border-radius:6px;">Borrowed</span>';
+}
+
+function getDisplayStatus(borrow) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (borrow.borrow_status === 'returned') return 'returned';
+  if (borrow.due_date < today) return 'overdue';
+  return 'borrowed';
+}
+
+function renderBorrowMeta() {
+  const d = borrowData;
+  const displayStatus = getDisplayStatus(d);
+  document.getElementById('editLink').href = `/borrows/${id}/edit`;
+  document.getElementById('detail').innerHTML = `
+    <p><strong>ID:</strong> ${d.id}</p>
+    <p><strong>User:</strong> ${d.user ? d.user.full_name : d.user_id}</p>
+    <p><strong>Borrow Date:</strong> ${d.borrow_date}</p>
+    <p><strong>Due Date:</strong> ${d.due_date}</p>
+    <p><strong>Status:</strong> ${statusBadge(displayStatus)}</p>`;
+}
+
+function renderReturnRows() {
+  const details = borrowData.details || [];
+  const tbody = document.getElementById('itemsRows');
+  if (details.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="small">No items.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = details.map((detail) => {
+    const borrowed = Number(detail.amount || 0);
+    const returned = Number(detail.returned_amount || 0);
+    const remaining = borrowed - returned;
+    const equipmentName = detail.equipment ? detail.equipment.equipment_name : detail.equipment_id;
+
+    if (remaining <= 0) {
+      return `
+        <tr>
+          <td>${equipmentName}</td>
+          <td>${borrowed}</td>
+          <td>${returned}</td>
+          <td>0</td>
+          <td><span class="small">Fully returned</span></td>
+        </tr>
+      `;
+    }
+
+    return `
+      <tr>
+        <td>${equipmentName}</td>
+        <td>${borrowed}</td>
+        <td>${returned}</td>
+        <td>${remaining}</td>
+        <td>
+          <div class="flex">
+            <input type="number" min="1" max="${remaining}" value="1" id="returnInput-${detail.id}" style="width:90px;" />
+            <button class="btn btn-success" type="button" onclick="returnItem(${detail.id}, ${remaining})">Return</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function loadBorrowDetail() {
+  const res = await fetch(`${API}/borrows/${id}`);
+  const j = await res.json();
+  if (!res.ok || !j.success) {
+    document.getElementById('detail').innerHTML = `<p class="small">Failed to load borrow detail.</p>`;
+    document.getElementById('itemsRows').innerHTML = '<tr><td colspan="5" class="small">Failed to load items.</td></tr>';
+    return;
+  }
+
+  borrowData = j.data;
+  renderBorrowMeta();
+  renderReturnRows();
+}
+
+async function returnItem(borrowDetailId, remaining) {
+  const input = document.getElementById(`returnInput-${borrowDetailId}`);
+  const returnAmount = Number(input.value);
+
+  if (!Number.isInteger(returnAmount) || returnAmount <= 0) {
+    alert('Return amount must be greater than 0');
+    return;
+  }
+
+  if (returnAmount > remaining) {
+    alert('Return amount cannot exceed remaining quantity');
+    return;
+  }
+
+  const res = await fetch(`${API}/borrow/${id}/return`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      items: [{ borrowDetailId, returnAmount }]
+    })
+  });
+  const json = await res.json();
+
+  if (!res.ok || !json.success) {
+    alert(json.message || 'Return failed');
+    return;
+  }
+
+  await loadBorrowDetail();
+}
+
+window.returnItem = returnItem;
+document.getElementById('refreshBtn').addEventListener('click', loadBorrowDetail);
+loadBorrowDetail();
+</script>
+<%- include('../partials/footer') %>

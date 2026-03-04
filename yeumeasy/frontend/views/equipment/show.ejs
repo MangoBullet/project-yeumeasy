@@ -1,0 +1,25 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Equipment Detail</h1>
+  <div id="detail" class="small">Loading...</div>
+  <div class="flex" style="margin-top: 0.8rem;">
+    <a class="btn btn-primary" id="editLink" href="#">Edit</a>
+    <a class="btn btn-gray" href="/equipment">Back</a>
+  </div>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const id = window.location.pathname.split('/')[2];
+(async () => {
+  const res = await fetch(`${API}/equipment/${id}`);
+  const j = await res.json();
+  document.getElementById('editLink').href = `/equipment/${id}/edit`;
+  document.getElementById('detail').innerHTML = `
+    <p><strong>ID:</strong> ${j.data.id}</p>
+    <p><strong>Name:</strong> ${j.data.equipment_name}</p>
+    <p><strong>Category:</strong> ${j.data.category || '-'}</p>
+    <p><strong>Quantity:</strong> ${j.data.quantity}</p>
+    <p><strong>Status:</strong> ${j.data.status || '-'}</p>`;
+})();
+</script>
+<%- include('../partials/footer') %>

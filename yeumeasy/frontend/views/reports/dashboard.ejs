@@ -1,0 +1,49 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Dashboard</h1>
+  <p class="small">System overview fetched from backend API</p>
+</section>
+
+<section class="grid" id="summaryGrid"></section>
+
+<section class="card">
+  <h2>Recent Activity (Latest 5 Borrow Transactions)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>User</th><th>Borrow Date</th><th>Due Date</th><th>Status</th></tr></thead>
+    <tbody id="recentRows"></tbody>
+  </table>
+</section>
+
+<script>
+const API = '<%= apiBaseUrl %>';
+(async () => {
+  const res = await fetch(`${API}/dashboard`);
+  const j = await res.json();
+  const d = j.data;
+
+  const summary = [
+    { label: 'Total Users', value: d.totalUsers },
+    { label: 'Total Equipment', value: d.totalEquipment },
+    { label: 'Active Borrow', value: d.totalActiveBorrow },
+    { label: 'Overdue', value: d.totalOverdue }
+  ];
+
+  document.getElementById('summaryGrid').innerHTML = summary.map(s => `
+    <article class="card">
+      <div class="small">${s.label}</div>
+      <h2>${s.value}</h2>
+    </article>
+  `).join('');
+
+  document.getElementById('recentRows').innerHTML = d.latestBorrows.map(x => `
+    <tr>
+      <td>${x.id}</td>
+      <td>${x.user ? x.user.full_name : x.user_id}</td>
+      <td>${x.borrow_date}</td>
+      <td>${x.due_date}</td>
+      <td>${x.borrow_status}</td>
+    </tr>
+  `).join('');
+})();
+</script>
+<%- include('../partials/footer') %>

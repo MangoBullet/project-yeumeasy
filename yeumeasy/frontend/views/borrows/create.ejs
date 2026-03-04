@@ -1,0 +1,173 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Create Borrow</h1>
+  <form id="createForm">
+    <select name="user_id" id="userSelect" required></select>
+    <input type="date" name="borrow_date" id="borrowDateInput" required />
+    <input type="date" name="due_date" id="dueDateInput" required />
+    <select name="borrow_status">
+      <option value="borrowed">borrowed</option>
+      <option value="returned">returned</option>
+    </select>
+
+    <hr />
+    <h3>Borrow Items</h3>
+    <div class="flex">
+      <select id="equipmentSelect"></select>
+      <input type="number" id="amountInput" min="1" value="1" placeholder="Amount" />
+      <button class="btn btn-primary" type="button" id="addItemBtn">Add Item</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Equipment</th>
+          <th>Available</th>
+          <th>Amount</th>
+          <th>Remove</th>
+        </tr>
+      </thead>
+      <tbody id="itemsRows">
+        <tr><td colspan="4" class="small">No items added.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="flex">
+      <button class="btn btn-success" type="submit">Save</button>
+      <a class="btn btn-gray" href="/borrows">Cancel</a>
+    </div>
+  </form>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const cart = [];
+let equipmentOptions = [];
+
+function renderItems() {
+  const tbody = document.getElementById('itemsRows');
+  if (cart.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="small">No items added.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = cart.map((item) => `
+    <tr>
+      <td>${item.equipment_name}</td>
+      <td>${item.available}</td>
+      <td>${item.amount}</td>
+      <td><button class="btn btn-danger" type="button" onclick="removeItem(${item.equipment_id})">Remove</button></td>
+    </tr>
+  `).join('');
+}
+
+function removeItem(equipmentId) {
+  const index = cart.findIndex((item) => item.equipment_id === equipmentId);
+  if (index !== -1) {
+    cart.splice(index, 1);
+    renderItems();
+  }
+}
+
+function setupDefaultDates() {
+  const today = new Date().toISOString().slice(0, 10);
+  const due = new Date();
+  due.setDate(due.getDate() + 5);
+  document.getElementById('borrowDateInput').value = today;
+  document.getElementById('dueDateInput').value = due.toISOString().slice(0, 10);
+}
+
+async function loadUsers() {
+  const r = await fetch(`${API}/users?page=1&pageSize=1000`);
+  const j = await r.json();
+  document.getElementById('userSelect').innerHTML = j.data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+}
+
+async function loadEquipment() {
+  const r = await fetch(`${API}/equipment?page=1&pageSize=1000`);
+  const j = await r.json();
+  equipmentOptions = (j.data || []).filter((e) => Number(e.quantity) > 0);
+
+  const select = document.getElementById('equipmentSelect');
+  if (equipmentOptions.length === 0) {
+    select.innerHTML = '<option value="">No equipment in stock</option>';
+    return;
+  }
+
+  select.innerHTML = equipmentOptions.map((e) =>
+    `<option value="${e.id}">${e.equipment_name} (stock: ${e.quantity})</option>`
+  ).join('');
+}
+
+document.getElementById('addItemBtn').addEventListener('click', () => {
+  const equipmentId = Number(document.getElementById('equipmentSelect').value);
+  const amount = Number(document.getElementById('amountInput').value);
+  const selected = equipmentOptions.find((e) => Number(e.id) === equipmentId);
+
+  if (!selected) {
+    alert('Please select equipment');
+    return;
+  }
+
+  if (!Number.isInteger(amount) || amount <= 0) {
+    alert('Amount must be greater than 0');
+    return;
+  }
+
+  const existing = cart.find((item) => item.equipment_id === equipmentId);
+  const nextAmount = (existing ? existing.amount : 0) + amount;
+  if (nextAmount > Number(selected.quantity)) {
+    alert(`Insufficient stock for ${selected.equipment_name}. Available: ${selected.quantity}`);
+    return;
+  }
+
+  if (existing) {
+    existing.amount = nextAmount;
+  } else {
+    cart.push({
+      equipment_id: equipmentId,
+      equipment_name: selected.equipment_name,
+      available: Number(selected.quantity),
+      amount
+    });
+  }
+
+  document.getElementById('amountInput').value = '1';
+  renderItems();
+});
+
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  if (cart.length === 0) {
+    alert('Please add at least one equipment item');
+    return;
+  }
+
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  payload.user_id = Number(payload.user_id);
+  if (new Date(payload.due_date) <= new Date(payload.borrow_date)) {
+    alert('Due date must be after borrow date');
+    return;
+  }
+  payload.items = cart.map((item) => ({
+    equipment_id: item.equipment_id,
+    amount: item.amount
+  }));
+
+  const res = await fetch(`${API}/borrow`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+
+  const json = await res.json();
+  if (res.ok && json.success) {
+    window.location = '/borrows';
+  } else {
+    alert((json.errors && json.errors[0] && json.errors[0].msg) || json.message || 'Create failed');
+  }
+});
+
+setupDefaultDates();
+loadUsers();
+loadEquipment();
+</script>
+<%- include('../partials/footer') %>

@@ -1,0 +1,88 @@
+<%- include('../partials/header') %>
+
+<section class="card">
+  <div class="flex" style="justify-content: space-between; align-items: center;">
+    <h1>Users</h1>
+    <a class="btn btn-primary" href="/users/create">Create User</a>
+  </div>
+  <form id="searchForm" class="flex">
+    <input id="searchInput" placeholder="Search full name / student ID" />
+    <button class="btn btn-success" type="submit">Search</button>
+    <a class="btn btn-gray" href="/users">Reset</a>
+  </form>
+</section>
+
+<section class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Name</th><th>Student ID</th><th>Phone</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="flex" style="margin-top:0.8rem;">
+    <button class="btn btn-gray" id="prevBtn">Previous</button>
+    <span id="pageInfo" class="small"></span>
+    <button class="btn btn-gray" id="nextBtn">Next</button>
+  </div>
+</section>
+
+<script>
+const API = '<%= apiBaseUrl %>';
+const params = new URLSearchParams(window.location.search);
+let page = parseInt(params.get('page') || '1', 10);
+let search = params.get('search') || '';
+document.getElementById('searchInput').value = search;
+
+function setUrl() {
+  const p = new URLSearchParams();
+  if (search) p.set('search', search);
+  p.set('page', String(page));
+  history.replaceState({}, '', `/users?${p.toString()}`);
+}
+
+async function loadUsers() {
+  setUrl();
+  const res = await fetch(`${API}/users?search=${encodeURIComponent(search)}&page=${page}`);
+  const json = await res.json();
+  const tbody = document.getElementById('rows');
+  tbody.innerHTML = json.data.map(u => `
+    <tr>
+      <td>${u.id}</td><td>${u.full_name}</td><td>${u.student_id || ''}</td><td>${u.phone || ''}</td>
+      <td class="actions">
+        <a class="btn btn-gray" href="/users/${u.id}">Show</a>
+        <a class="btn btn-primary" href="/users/${u.id}/edit">Edit</a>
+        <a class="btn btn-danger" href="/users/${u.id}/delete">Delete</a>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('pageInfo').textContent = `Page ${json.pagination.currentPage} / ${json.pagination.totalPages}`;
+  document.getElementById('prevBtn').disabled = page <= 1;
+  document.getElementById('nextBtn').disabled = page >= json.pagination.totalPages;
+}
+
+document.getElementById('searchForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  search = document.getElementById('searchInput').value.trim();
+  page = 1;
+  loadUsers();
+});
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (page > 1) {
+    page -= 1;
+    loadUsers();
+  }
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  page += 1;
+  loadUsers();
+});
+
+loadUsers();
+</script>
+
+<%- include('../partials/footer') %>

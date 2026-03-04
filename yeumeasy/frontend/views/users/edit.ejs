@@ -1,0 +1,36 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Edit User</h1>
+  <form id="editForm">
+    <input name="full_name" placeholder="Full name" required />
+    <input name="student_id" placeholder="Student ID" />
+    <input name="phone" placeholder="Phone" />
+    <div class="flex">
+      <button class="btn btn-primary" type="submit">Update</button>
+      <a class="btn btn-gray" href="/users">Back</a>
+    </div>
+  </form>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const id = window.location.pathname.split('/')[2];
+async function init() {
+  const res = await fetch(`${API}/users/${id}`);
+  const json = await res.json();
+  const form = document.getElementById('editForm');
+  form.full_name.value = json.data.full_name || '';
+  form.student_id.value = json.data.student_id || '';
+  form.phone.value = json.data.phone || '';
+}
+init();
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  const res = await fetch(`${API}/users/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  });
+  if (res.ok) window.location = '/users';
+  else alert('Update failed');
+});
+</script>
+<%- include('../partials/footer') %>

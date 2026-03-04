@@ -1,0 +1,280 @@
+<%- include('../partials/header') %>
+
+<section class="card">
+  <div class="flex" style="justify-content: space-between; align-items: center;">
+    <div>
+      <h1>Reports</h1>
+      <p class="small">Borrowing analytics and most borrowed equipment summary</p>
+    </div>
+    <button class="btn btn-gray" type="button" onclick="window.print()">Print Report</button>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Borrow by Period</h2>
+  <form id="borrowByPeriodForm" class="report-filters">
+    <div>
+      <label for="groupBy">Group By</label>
+      <select id="groupBy" name="groupBy">
+        <option value="day">Day</option>
+        <option value="month">Month</option>
+      </select>
+    </div>
+    <div id="dayFilterWrap">
+      <label for="dayFilter">Day</label>
+      <input id="dayFilter" name="dayFilter" type="text" placeholder="YYYY-MM-DD or DD/MM/YYYY" />
+    </div>
+    <div id="monthFilterWrap">
+      <label for="monthFilter">Month</label>
+      <input id="monthFilter" name="monthFilter" type="month" />
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Apply Filter</button>
+    </div>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Group Date</th>
+        <th>User</th>
+        <th>Total Borrowed</th>
+        <th>Borrow Date</th>
+        <th>Start Date</th>
+        <th>Return Date</th>
+      </tr>
+    </thead>
+    <tbody id="borrowByPeriodRows"></tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Most Borrowed Equipment</h2>
+  <form id="topEquipmentForm" class="report-filters">
+    <div>
+      <label for="equipmentMonth">Month</label>
+      <input id="equipmentMonth" name="equipmentMonth" type="month" required />
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Refresh</button>
+    </div>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Equipment</th>
+        <th>Total Times</th>
+        <th>Total Quantity</th>
+      </tr>
+    </thead>
+    <tbody id="topEquipmentRows"></tbody>
+  </table>
+</section>
+
+<script>
+const API = '<%= apiBaseUrl %>';
+
+function toIsoDayFromInput(value) {
+  const raw = (value || '').trim();
+  if (!raw) return null;
+
+  let year;
+  let month;
+  let day;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    [year, month, day] = raw.split('-').map(Number);
+  } else {
+    const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    day = Number(match[1]);
+    month = Number(match[2]);
+    year = Number(match[3]);
+  }
+
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  const valid =
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day;
+
+  if (!valid) return null;
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function showBorrowFilterByGroup() {
+  const groupBy = document.getElementById('groupBy').value;
+  const dayWrap = document.getElementById('dayFilterWrap');
+  const monthWrap = document.getElementById('monthFilterWrap');
+  dayWrap.style.display = groupBy === 'day' ? 'block' : 'none';
+  monthWrap.style.display = groupBy === 'month' ? 'block' : 'none';
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function currentMonthIso() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function renderBorrowRowsFromDay(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return '<tr><td colspan="6" class="small">No data found for selected day.</td></tr>';
+  }
+  return items.map((item) => `
+    <tr>
+      <td>${item.borrowDate || '-'}</td>
+      <td>${item.user || '-'}</td>
+      <td>${item.totalAmount ?? 0}</td>
+      <td>${item.borrowDate || '-'}</td>
+      <td>${item.startDate || '-'}</td>
+      <td>${item.returnDate || '-'}</td>
+    </tr>
+  `).join('');
+}
+
+function renderBorrowRowsFromMonth(groups) {
+  if (!Array.isArray(groups) || groups.length === 0) {
+    return '<tr><td colspan="6" class="small">No data found for selected month.</td></tr>';
+  }
+
+  const rows = [];
+  groups.forEach((group) => {
+    const transactions = Array.isArray(group.transactions) ? group.transactions : [];
+    if (transactions.length === 0) {
+      rows.push(`
+        <tr>
+          <td>${group.date}</td>
+          <td>-</td>
+          <td>0</td>
+          <td>${group.date}</td>
+          <td>${group.date}</td>
+          <td>-</td>
+        </tr>
+      `);
+      return;
+    }
+
+    transactions.forEach((item) => {
+      rows.push(`
+        <tr>
+          <td>${group.date}</td>
+          <td>${item.user || '-'}</td>
+          <td>${item.totalAmount ?? 0}</td>
+          <td>${item.borrowDate || '-'}</td>
+          <td>${item.startDate || '-'}</td>
+          <td>${item.returnDate || '-'}</td>
+        </tr>
+      `);
+    });
+  });
+
+  return rows.join('');
+}
+
+async function loadBorrowSummary() {
+  const groupBy = document.getElementById('groupBy').value;
+  const params = new URLSearchParams();
+
+  if (groupBy === 'day') {
+    const isoDay = toIsoDayFromInput(document.getElementById('dayFilter').value);
+    if (!isoDay) {
+      document.getElementById('borrowByPeriodRows').innerHTML =
+        '<tr><td colspan="6" class="small">Invalid day. Use YYYY-MM-DD or DD/MM/YYYY.</td></tr>';
+      return;
+    }
+    params.set('day', isoDay);
+  } else {
+    const month = document.getElementById('monthFilter').value;
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      document.getElementById('borrowByPeriodRows').innerHTML =
+        '<tr><td colspan="6" class="small">Invalid month. Use YYYY-MM.</td></tr>';
+      return;
+    }
+    params.set('month', month);
+  }
+
+  try {
+    const res = await fetch(`${API}/reports/borrow-summary?${params.toString()}`);
+    const json = await res.json();
+    if (!res.ok || json.success === false) {
+      const msg = (json && json.message) || `Request failed (${res.status})`;
+      document.getElementById('borrowByPeriodRows').innerHTML =
+        `<tr><td colspan="6" class="small">API error: ${msg}</td></tr>`;
+      return;
+    }
+
+    document.getElementById('borrowByPeriodRows').innerHTML =
+      groupBy === 'day'
+        ? renderBorrowRowsFromDay(json.data)
+        : renderBorrowRowsFromMonth(json.data);
+  } catch (error) {
+    document.getElementById('borrowByPeriodRows').innerHTML =
+      `<tr><td colspan="6" class="small">Cannot connect to API: ${error.message}</td></tr>`;
+  }
+}
+
+async function loadTopEquipment() {
+  const month = document.getElementById('equipmentMonth').value;
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    document.getElementById('topEquipmentRows').innerHTML =
+      '<tr><td colspan="3" class="small">Invalid month. Use YYYY-MM.</td></tr>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/reports/top-equipment?month=${encodeURIComponent(month)}`);
+    const json = await res.json();
+    if (!res.ok || json.success === false) {
+      const msg = (json && json.message) || `Request failed (${res.status})`;
+      document.getElementById('topEquipmentRows').innerHTML =
+        `<tr><td colspan="3" class="small">API error: ${msg}</td></tr>`;
+      return;
+    }
+
+    const rows = Array.isArray(json.topEquipment) ? json.topEquipment : [];
+
+    document.getElementById('topEquipmentRows').innerHTML = rows.length
+      ? rows.map((row) => `
+        <tr>
+          <td>${row.equipment_name || '-'}</td>
+          <td>${row.totalTimes ?? 0}</td>
+          <td>${row.totalQuantity ?? 0}</td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="3" class="small">No top equipment data available.</td></tr>';
+  } catch (error) {
+    document.getElementById('topEquipmentRows').innerHTML =
+      `<tr><td colspan="3" class="small">Cannot connect to API: ${error.message}</td></tr>`;
+  }
+}
+
+document.getElementById('borrowByPeriodForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await loadBorrowSummary();
+});
+
+document.getElementById('topEquipmentForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await loadTopEquipment();
+});
+
+document.getElementById('groupBy').addEventListener('change', async () => {
+  showBorrowFilterByGroup();
+  await loadBorrowSummary();
+});
+
+(async () => {
+  document.getElementById('dayFilter').value = todayIso();
+  document.getElementById('monthFilter').value = currentMonthIso();
+  document.getElementById('equipmentMonth').value = currentMonthIso();
+  showBorrowFilterByGroup();
+
+  await loadBorrowSummary();
+  await loadTopEquipment();
+})();
+</script>
+
+<%- include('../partials/footer') %>

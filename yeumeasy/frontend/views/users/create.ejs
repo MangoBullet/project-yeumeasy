@@ -1,0 +1,28 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Create User</h1>
+  <form id="createForm">
+    <input name="full_name" placeholder="Full name" required />
+    <input name="student_id" placeholder="Student ID" required />
+    <input name="phone" placeholder="Phone" pattern="\\d{9,15}" required />
+    <div class="flex">
+      <button class="btn btn-success" type="submit">Save</button>
+      <a class="btn btn-gray" href="/users">Cancel</a>
+    </div>
+  </form>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = Object.fromEntries(fd.entries());
+  const res = await fetch(`${API}/users`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  });
+  const json = await res.json();
+  if (res.ok) window.location = '/users';
+  else alert((json.errors && json.errors[0] && json.errors[0].msg) || json.message || 'Create failed');
+});
+</script>
+<%- include('../partials/footer') %>

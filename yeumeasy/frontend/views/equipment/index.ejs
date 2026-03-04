@@ -1,0 +1,71 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <div class="flex" style="justify-content: space-between; align-items: center;">
+    <h1>Equipment</h1>
+    <a class="btn btn-primary" href="/equipment/create">Create Equipment</a>
+  </div>
+  <form id="searchForm" class="flex">
+    <input id="searchInput" placeholder="Search equipment/category/status" />
+    <button class="btn btn-success" type="submit">Search</button>
+    <a class="btn btn-gray" href="/equipment">Reset</a>
+  </form>
+</section>
+<section class="card">
+  <table>
+    <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Qty</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="flex" style="margin-top:0.8rem;">
+    <button class="btn btn-gray" id="prevBtn">Previous</button>
+    <span id="pageInfo" class="small"></span>
+    <button class="btn btn-gray" id="nextBtn">Next</button>
+  </div>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const params = new URLSearchParams(window.location.search);
+let page = parseInt(params.get('page') || '1', 10);
+let search = params.get('search') || '';
+const pageSize = 10;
+document.getElementById('searchInput').value = search;
+
+function setUrl() {
+  const p = new URLSearchParams();
+  if (search) p.set('search', search);
+  p.set('page', String(page));
+  history.replaceState({}, '', `/equipment?${p.toString()}`);
+}
+
+async function load() {
+  setUrl();
+  const res = await fetch(`${API}/equipment?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}`);
+  const json = await res.json();
+  const tbody = document.getElementById('rows');
+  tbody.innerHTML = json.data.map(e => `
+    <tr>
+      <td>${e.id}</td><td>${e.equipment_name}</td><td>${e.category || ''}</td><td>${e.quantity}</td><td>${e.status || ''}</td>
+      <td class="actions">
+        <a class="btn btn-gray" href="/equipment/${e.id}">Show</a>
+        <a class="btn btn-primary" href="/equipment/${e.id}/edit">Edit</a>
+        <a class="btn btn-danger" href="/equipment/${e.id}/delete">Delete</a>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('pageInfo').textContent = `Page ${json.pagination.currentPage} / ${json.pagination.totalPages}`;
+  document.getElementById('prevBtn').disabled = page <= 1;
+  document.getElementById('nextBtn').disabled = page >= json.pagination.totalPages;
+}
+
+document.getElementById('searchForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  search = document.getElementById('searchInput').value.trim();
+  page = 1;
+  load();
+});
+
+document.getElementById('prevBtn').addEventListener('click', () => { if (page > 1) { page -= 1; load(); } });
+document.getElementById('nextBtn').addEventListener('click', () => { page += 1; load(); });
+
+load();
+</script>
+<%- include('../partials/footer') %>

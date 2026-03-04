@@ -1,0 +1,53 @@
+<%- include('../partials/header') %>
+<section class="card">
+  <h1>Edit Equipment</h1>
+  <form id="editForm">
+    <input name="equipment_name" placeholder="Equipment name" required />
+    <select name="category">
+      <option value="IT">IT</option>
+      <option value="AV">AV</option>
+      <option value="Accessory">Accessory</option>
+      <option value="Audio">Audio</option>
+      <option value="Media">Media</option>
+      <option value="Utility">Utility</option>
+      <option value="Other">Other</option>
+    </select>
+    <input type="number" name="quantity" placeholder="Quantity" min="0" />
+    <select name="status">
+      <option value="available">available</option>
+      <option value="low_stock">low_stock</option>
+      <option value="out_of_stock">out_of_stock</option>
+      <option value="maintenance">maintenance</option>
+      <option value="unavailable">unavailable</option>
+    </select>
+    <div class="flex">
+      <button class="btn btn-primary" type="submit">Update</button>
+      <a class="btn btn-gray" href="/equipment">Back</a>
+    </div>
+  </form>
+</section>
+<script>
+const API = '<%= apiBaseUrl %>';
+const id = window.location.pathname.split('/')[2];
+(async () => {
+  const res = await fetch(`${API}/equipment/${id}`);
+  const j = await res.json();
+  const form = document.getElementById('editForm');
+  form.equipment_name.value = j.data.equipment_name || '';
+  form.category.value = j.data.category || 'Other';
+  if (!form.category.value) form.category.value = 'Other';
+  form.quantity.value = j.data.quantity || 0;
+  form.status.value = j.data.status || 'available';
+  if (!form.status.value) form.status.value = 'available';
+})();
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  payload.quantity = Number(payload.quantity || 0);
+  const res = await fetch(`${API}/equipment/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+  if (res.ok) window.location = '/equipment'; else alert('Update failed');
+});
+</script>
+<%- include('../partials/footer') %>
