@@ -22,10 +22,10 @@ const API = '<%= apiBaseUrl %>';
   const d = j.data;
 
   const summary = [
-    { label: 'Total Users', value: d.totalUsers },
-    { label: 'Total Equipment', value: d.totalEquipment },
-    { label: 'Active Borrow', value: d.totalActiveBorrow },
-    { label: 'Overdue', value: d.totalOverdue }
+    { label: 'ผู้ใช้งานทั้งหมด', value: d.totalUsers },
+    { label: 'อุปกรณ์ทั้งหมด', value: d.totalEquipment },
+    { label: 'รายการที่กำลังยืม', value: d.totalActiveBorrow },
+    { label: 'รายการเกินกำหนด', value: d.totalOverdue }
   ];
 
   document.getElementById('summaryGrid').innerHTML = summary.map(s => `
