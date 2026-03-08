@@ -3,9 +3,12 @@ const controller = require('../controllers/reportController');
 
 const router = express.Router();
 
-router.get('/borrow-summary', controller.borrowSummary);
-router.get('/borrow-by-date', controller.borrowSummary);
-router.get('/top-equipment', controller.topEquipment);
-router.get('/dashboard', controller.dashboard);
+router.get('/borrow', controller.getBorrowReport);
+router.get('/top-equipment', controller.getTopEquipmentReport);
+
+// Backward-compatible aliases
+router.get('/borrow-summary', controller.getBorrowReport);
+router.get('/borrow-by-date', controller.getBorrowReport);
+router.get('/dashboard', controller.getReportDashboard);
 
 module.exports = router;

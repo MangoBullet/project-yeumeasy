@@ -1,15 +1,15 @@
 <%- include('../partials/header') %>
 <section class="card">
-  <h1>Dashboard</h1>
-  <p class="small">System overview fetched from backend API</p>
+  <h1>แดชบอร์ด</h1>
+  <p class="small">ภาพรวมของระบบที่ดึงข้อมูลจาก Backend API</p>
 </section>
 
 <section class="grid" id="summaryGrid"></section>
 
 <section class="card">
-  <h2>Recent Activity (Latest 5 Borrow Transactions)</h2>
+  <h2>กิจกรรมล่าสุด (รายการยืม 5 รายการล่าสุด)</h2>
   <table>
-    <thead><tr><th>ID</th><th>User</th><th>Borrow Date</th><th>Due Date</th><th>Status</th></tr></thead>
+    <thead><tr><th>รหัส</th><th>ผู้ใช้งาน</th><th>วันที่ยืม</th><th>วันครบกำหนด</th><th>สถานะ</th></tr></thead>
     <tbody id="recentRows"></tbody>
   </table>
 </section>
@@ -22,10 +22,10 @@ const API = '<%= apiBaseUrl %>';
   const d = j.data;
 
   const summary = [
-    { label: 'Total Users', value: d.totalUsers },
-    { label: 'Total Equipment', value: d.totalEquipment },
-    { label: 'Active Borrow', value: d.totalActiveBorrow },
-    { label: 'Overdue', value: d.totalOverdue }
+    { label: 'ผู้ใช้งานทั้งหมด', value: d.totalUsers },
+    { label: 'อุปกรณ์ทั้งหมด', value: d.totalEquipment },
+    { label: 'รายการที่กำลังยืม', value: d.totalActiveBorrow },
+    { label: 'รายการเกินกำหนด', value: d.totalOverdue }
   ];
 
   document.getElementById('summaryGrid').innerHTML = summary.map(s => `

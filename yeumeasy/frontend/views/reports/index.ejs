@@ -3,29 +3,29 @@
 <section class="card">
   <div class="flex" style="justify-content: space-between; align-items: center;">
     <div>
-      <h1>Reports</h1>
-      <p class="small">Borrowing analytics and most borrowed equipment summary</p>
+      <h1>รายงาน</h1>
+      <p class="small">สรุปการวิเคราะห์การยืมและอุปกรณ์ที่ถูกยืมมากที่สุด</p>
     </div>
     <button class="btn btn-gray" type="button" onclick="window.print()">Print Report</button>
   </div>
 </section>
 
 <section class="card">
-  <h2>Borrow by Period</h2>
+  <h2>รายงานการยืมตามช่วงเวลา</h2>
   <form id="borrowByPeriodForm" class="report-filters">
     <div>
-      <label for="groupBy">Group By</label>
+      <label for="groupBy">จัดกลุ่มตาม</label>
       <select id="groupBy" name="groupBy">
-        <option value="day">Day</option>
-        <option value="month">Month</option>
+        <option value="day">วัน</option>
+        <option value="month" selected>เดือน</option>
       </select>
     </div>
     <div id="dayFilterWrap">
-      <label for="dayFilter">Day</label>
+      <label for="dayFilter">เลือกวัน</label>
       <input id="dayFilter" name="dayFilter" type="text" placeholder="YYYY-MM-DD or DD/MM/YYYY" />
     </div>
     <div id="monthFilterWrap">
-      <label for="monthFilter">Month</label>
+      <label for="monthFilter">เลือกเดือน</label>
       <input id="monthFilter" name="monthFilter" type="month" />
     </div>
     <div class="actions">
@@ -36,12 +36,12 @@
   <table>
     <thead>
       <tr>
-        <th>Group Date</th>
-        <th>User</th>
-        <th>Total Borrowed</th>
-        <th>Borrow Date</th>
-        <th>Start Date</th>
-        <th>Return Date</th>
+        <th>วันที่จัดกลุ่ม</th>
+        <th>ผู้ใช้งาน</th>
+        <th>จำนวนที่ยืมรวม</th>
+        <th>วันที่ยืม</th>
+        <th>วันที่เริ่ม</th>
+        <th>วันที่คืน</th>
       </tr>
     </thead>
     <tbody id="borrowByPeriodRows"></tbody>
@@ -49,7 +49,7 @@
 </section>
 
 <section class="card">
-  <h2>Most Borrowed Equipment</h2>
+  <h2>อุปกรณ์ที่ถูกยืมมากที่สุด</h2>
   <form id="topEquipmentForm" class="report-filters">
     <div>
       <label for="equipmentMonth">Month</label>
@@ -63,9 +63,9 @@
   <table>
     <thead>
       <tr>
-        <th>Equipment</th>
-        <th>Total Times</th>
-        <th>Total Quantity</th>
+        <th>อุปกรณ์</th>
+        <th>จำนวนครั้งที่ยืม</th>
+        <th>จำนวนที่ยืมรวม</th>
       </tr>
     </thead>
     <tbody id="topEquipmentRows"></tbody>
@@ -119,6 +119,15 @@ function currentMonthIso() {
   return new Date().toISOString().slice(0, 7);
 }
 
+function monthBounds(monthValue) {
+  const [year, month] = monthValue.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return {
+    startDate: `${monthValue}-01`,
+    endDate: `${monthValue}-${String(lastDay).padStart(2, '0')}`
+  };
+}
+
 function renderBorrowRowsFromDay(items) {
   if (!Array.isArray(items) || items.length === 0) {
     return '<tr><td colspan="6" class="small">No data found for selected day.</td></tr>';
@@ -127,7 +136,7 @@ function renderBorrowRowsFromDay(items) {
     <tr>
       <td>${item.borrowDate || '-'}</td>
       <td>${item.user || '-'}</td>
-      <td>${item.totalAmount ?? 0}</td>
+      <td>${item.quantity ?? 0}</td>
       <td>${item.borrowDate || '-'}</td>
       <td>${item.startDate || '-'}</td>
       <td>${item.returnDate || '-'}</td>
@@ -135,48 +144,30 @@ function renderBorrowRowsFromDay(items) {
   `).join('');
 }
 
-function renderBorrowRowsFromMonth(groups) {
-  if (!Array.isArray(groups) || groups.length === 0) {
+function renderBorrowRowsFromMonth(items) {
+  if (!Array.isArray(items) || items.length === 0) {
     return '<tr><td colspan="6" class="small">No data found for selected month.</td></tr>';
   }
 
-  const rows = [];
-  groups.forEach((group) => {
-    const transactions = Array.isArray(group.transactions) ? group.transactions : [];
-    if (transactions.length === 0) {
-      rows.push(`
-        <tr>
-          <td>${group.date}</td>
-          <td>-</td>
-          <td>0</td>
-          <td>${group.date}</td>
-          <td>${group.date}</td>
-          <td>-</td>
-        </tr>
-      `);
-      return;
-    }
-
-    transactions.forEach((item) => {
-      rows.push(`
-        <tr>
-          <td>${group.date}</td>
-          <td>${item.user || '-'}</td>
-          <td>${item.totalAmount ?? 0}</td>
-          <td>${item.borrowDate || '-'}</td>
-          <td>${item.startDate || '-'}</td>
-          <td>${item.returnDate || '-'}</td>
-        </tr>
-      `);
-    });
-  });
-
-  return rows.join('');
+  return items.map((item) => {
+    const groupedDate = item.borrowDate || item.startDate || '-';
+    return `
+      <tr>
+        <td>${groupedDate}</td>
+        <td>${item.user || '-'}</td>
+        <td>${item.quantity ?? 0}</td>
+        <td>${item.borrowDate || '-'}</td>
+        <td>${item.startDate || '-'}</td>
+        <td>${item.returnDate || '-'}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 async function loadBorrowSummary() {
   const groupBy = document.getElementById('groupBy').value;
   const params = new URLSearchParams();
+  params.set('limit', '1000');
 
   if (groupBy === 'day') {
     const isoDay = toIsoDayFromInput(document.getElementById('dayFilter').value);
@@ -185,7 +176,8 @@ async function loadBorrowSummary() {
         '<tr><td colspan="6" class="small">Invalid day. Use YYYY-MM-DD or DD/MM/YYYY.</td></tr>';
       return;
     }
-    params.set('day', isoDay);
+    params.set('startDate', isoDay);
+    params.set('endDate', isoDay);
   } else {
     const month = document.getElementById('monthFilter').value;
     if (!/^\d{4}-\d{2}$/.test(month)) {
@@ -193,11 +185,13 @@ async function loadBorrowSummary() {
         '<tr><td colspan="6" class="small">Invalid month. Use YYYY-MM.</td></tr>';
       return;
     }
-    params.set('month', month);
+    const { startDate, endDate } = monthBounds(month);
+    params.set('startDate', startDate);
+    params.set('endDate', endDate);
   }
 
   try {
-    const res = await fetch(`${API}/reports/borrow-summary?${params.toString()}`);
+    const res = await fetch(`${API}/reports/borrow?${params.toString()}`);
     const json = await res.json();
     if (!res.ok || json.success === false) {
       const msg = (json && json.message) || `Request failed (${res.status})`;
@@ -251,6 +245,18 @@ async function loadTopEquipment() {
   }
 }
 
+async function fetchLatestBorrowDate() {
+  try {
+    const res = await fetch(`${API}/reports/borrow?limit=1&page=1`);
+    const json = await res.json();
+    if (!res.ok || !json || !Array.isArray(json.data) || !json.data.length) return null;
+    const latest = json.data[0];
+    return latest && latest.borrowDate ? latest.borrowDate : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 document.getElementById('borrowByPeriodForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   await loadBorrowSummary();
@@ -267,9 +273,13 @@ document.getElementById('groupBy').addEventListener('change', async () => {
 });
 
 (async () => {
-  document.getElementById('dayFilter').value = todayIso();
-  document.getElementById('monthFilter').value = currentMonthIso();
-  document.getElementById('equipmentMonth').value = currentMonthIso();
+  const latestBorrowDate = await fetchLatestBorrowDate();
+  const defaultDay = latestBorrowDate || todayIso();
+  const defaultMonth = defaultDay.slice(0, 7);
+
+  document.getElementById('dayFilter').value = defaultDay;
+  document.getElementById('monthFilter').value = defaultMonth || currentMonthIso();
+  document.getElementById('equipmentMonth').value = defaultMonth || currentMonthIso();
   showBorrowFilterByGroup();
 
   await loadBorrowSummary();
