@@ -179,4 +179,4 @@ When creating/updating/deleting `BorrowDetail`, backend recalculates related `Bo
 รันจากโฟลเดอร์หลักของโปรเจกต์ (root)
 npm install --prefix backend && npm install --prefix frontend 
 
-Test 1
+Test 2
