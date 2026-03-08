@@ -177,4 +177,4 @@ When creating/updating/deleting `BorrowDetail`, backend recalculates related `Bo
   - `/equipment?search=laptop&page=1`
 
 รันจากโฟลเดอร์หลักของโปรเจกต์ (root)
-npm install --prefix backend && npm install --prefix frontend
+npm install --prefix backend && npm install --prefix frontend g
